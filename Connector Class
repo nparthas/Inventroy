@@ -1,0 +1,40 @@
+# https://pythontips.com/2013/07/30/20-python-libraries-you-cant-live-without/
+# MyClass(self, required=True, someNumber=<default>, *args, **kwargs)
+# http://www.informit.com/articles/article.aspx?p=2314818
+# https://docs.djangoproject.com/en/1.10/intro/tutorial04/
+
+
+import time
+import sqlite3 as sq
+
+
+# dates in  MM/DD/YY
+# history uses date as key, amount as value
+
+
+class Connector(object):
+    __traits = ['type', 'pairName', 'boxAmount', 'cartonAmount', 'dateOrdered', 'productInfo', 'officeAmount',
+                'storageAmount']
+
+    def __init__(self, name, series, currentAmount, *history, **kwargs):
+        try:
+            for key, value in kwargs.items():
+                if (key in self.__traits):
+                    setattr(self, key, value)
+            self.history = history
+            if self.history == ():
+                self.history = {time.strftime("%x"): currentAmount}
+        except:
+            print("Unable to initialize")
+
+        self.name = name.lower()
+        self.series = series.lower()
+        self.currentAmount = currentAmount
+
+    def setTrait(self, **kwargs):
+        try:
+            for key, value in kwargs.items():
+                if key in self.__traits:
+                    setattr(self, key, value)
+        except:
+            print("Unable to set new trait(s)")
