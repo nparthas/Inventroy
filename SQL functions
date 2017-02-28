@@ -1,0 +1,8 @@
+    def getTraitsSQL(self):
+        traits = connector.__dict__
+        traits = list(traits.keys())
+        # finish to include table variable type
+
+
+
+
