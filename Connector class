@@ -3,6 +3,7 @@
 # http://www.informit.com/articles/article.aspx?p=2314818
 # https://docs.djangoproject.com/en/1.10/intro/tutorial04/
 
+#work on web interface
 
 import time
 import sqlite3 as sq
