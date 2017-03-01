@@ -1,0 +1,57 @@
+import datetime
+import sqlite3 as sq
+
+def createDB(dbfile):
+    try:
+        connection = sq.connect(dbfile)
+        print("Opened database successfully")
+        return connection
+
+    except Exception as e:
+        print("Unable to initialize.")
+
+def createConnectorTable(connection):
+
+    connection.execute(''' CREATE TABLE CONNECTORS
+        ( ID INT PRIMARY KEY,
+        NAME TEXT,
+        CURRENTAMOUNT INT,
+        SERIES TEXT,
+        TYPE TEXT,
+        PAIRNAME TEXT,
+        BOXAMOUNT INT,
+        CARTONAMOUNT INT,
+        DATEORDERED TEXT,
+        PRODUCTINFO TEXT,
+        OFFICEAMOUNT INT,
+        STOREAGEAMOUNT INT);''')
+
+    print('Table created successfully')
+
+def fillTable(dict, connection, tablename): # put conenctors for defaultname
+    if tablename.upper() == 'CONNECTORS':
+
+        entries  = ( ' ID, NAME, SERIES, CURRENTAMOUNT, TYPE, PAIRNAME, BOXAMOUNT, \
+        CARTONAMOUNT, DATEORDERED, PRODUCTINFO, OFFICEAMOUNT, STOREAGEAMOUNT')
+
+        keys = list(dict.keys())
+        [key.upper() for key in keys]
+
+        keySTR = " ".join(keys)
+        keySTR = '(' + keySTR + ')'
+
+        values = str(list(dict.values()))
+        valuesSTR = values.replace('[', '(')
+        valuesSTR = valuesSTR.replace(']',')')
+
+        #DIFFERENTITATE BETWEEN ' AND " IN EXECUTE STATEMENT
+
+        if all(i in entries for i in keys):
+            connection.execute('INSERT INTO CONNECTORS ' + keySTR
+                               + ' VALUES ' + valuesSTR + '')
+            print('Records successfully added.')
+
+        else:
+            print('One or more keys are invalid.')
+
+        connection.commit()
