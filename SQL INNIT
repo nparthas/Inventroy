@@ -1,5 +1,14 @@
+# https://pythontips.com/2013/07/30/20-python-libraries-you-cant-live-without/
+# MyClass(self, required=True, someNumber=<default>, *args, **kwargs)
+# http://www.informit.com/articles/article.aspx?p=2314818
+# https://docs.djangoproject.com/en/1.10/intro/tutorial04/
+#https://www.tutorialspoint.com/sqlite/sqlite_python.htm
+
+
+
 import datetime
 import sqlite3 as sq
+
 
 def createDB(dbfile):
     try:
@@ -14,8 +23,8 @@ def createConnectorTable(connection):
 
     connection.execute(''' CREATE TABLE CONNECTORS
         ( ID INT PRIMARY KEY,
-        NAME TEXT,
-        CURRENTAMOUNT INT,
+        NAME TEXT NOT NULL UNIQUE,
+        CURRENTAMOUNT INT NOT NULL,
         SERIES TEXT,
         TYPE TEXT,
         PAIRNAME TEXT,
@@ -28,30 +37,72 @@ def createConnectorTable(connection):
 
     print('Table created successfully')
 
+def createHistoryTable(connection):
+
+    connection.execute(''' CREATE TABLE HISTORY
+        ( NAME TEXT NOT NULL,
+        AMOUNT INT NOT NULL,
+        DATE TEXT NOT NULL,
+        DIFFERENCE INT,
+        FOREIGN KEY(NAME) REFERENCES CONNECTORS(NAME)); ''')
+    print("Table created successfully")
+
+
 def fillTable(dict, connection, tablename): # put conenctors for defaultname
+
+    keys = [key.upper() for key in list(dict.keys())]
+
+    keySTR = ", ".join(keys)
+    keySTR = '(' + keySTR + ')'
+
+    values = str(list(dict.values()))
+    valuesSTR = values.replace("'", '"')
+    valuesSTR = valuesSTR.replace('[', '(')
+    valuesSTR = valuesSTR.replace(']', ')')
+
+    # DIFFERENTITATES BETWEEN ' AND " IN EXECUTE STATEMENT
+
     if tablename.upper() == 'CONNECTORS':
 
-        entries  = ( ' ID, NAME, SERIES, CURRENTAMOUNT, TYPE, PAIRNAME, BOXAMOUNT, \
-        CARTONAMOUNT, DATEORDERED, PRODUCTINFO, OFFICEAMOUNT, STOREAGEAMOUNT')
+        entries  = ( 'ID', 'NAME', 'SERIES', 'CURRENTAMOUNT', 'TYPE', 'PAIRNAME', 'BOXAMOUNT',
+        'CARTONAMOUNT', 'DATEORDERED', 'PRODUCTINFO', 'OFFICEAMOUNT', 'STOREAGEAMOUNT')
 
-        keys = list(dict.keys())
-        [key.upper() for key in keys]
-
-        keySTR = " ".join(keys)
-        keySTR = '(' + keySTR + ')'
-
-        values = str(list(dict.values()))
-        valuesSTR = values.replace('[', '(')
-        valuesSTR = valuesSTR.replace(']',')')
-
-        #DIFFERENTITATE BETWEEN ' AND " IN EXECUTE STATEMENT
-
-        if all(i in entries for i in keys):
-            connection.execute('INSERT INTO CONNECTORS ' + keySTR
-                               + ' VALUES ' + valuesSTR + '')
-            print('Records successfully added.')
+        if set(keys).issubset(set(entries)):
+            connection.execute('INSERT INTO CONNECTORS ' + keySTR + ' VALUES ' + valuesSTR)
+            print('Records successfully added to connector table.')
 
         else:
-            print('One or more keys are invalid.')
+            print("INVALID KEYS FOR UPDATE IN CONNECTOR TABLE")
 
-        connection.commit()
+    elif tablename.upper() == 'HISTORY':
+        entries = ('NAME' , 'AMOUNT', 'DATE', 'DIFFERENCE')
+
+        if set(entries) - set(keySTR) == set() or {'DIFFERENCE'}:
+            if 'DIFFERENCE' not in keySTR:
+                try:
+                    connection.execute('SELECT AMOUNT '
+                                       'FROM HISTORY '
+                                       'WHERE NAME  = ' + dict['NAME'] +
+                                       ' AND ' )
+                    #FINSIH WITH INNER JOIN
+                except:
+                    connection.execute('UPDATE HISTORY SET DIFFERENCE = 0 WHERE NAME = ' + dict['NAME'])
+                    # TEST
+
+            connection.exectute('INSERT INTO HISTORY ' + keySTR + 'VALUES ' + valuesSTR)
+            print('Records successfully added to history table.')
+
+        else:
+            print('INVALID KEYS FOR UPDATE IN HISTORY TABLE')
+
+    else:
+        print('NOT A VALID TABLE')
+
+    connection.commit()
+
+#for test use:
+
+db = createDB('inventory.db')
+conndict = { 'ID' : 1 , 'NAME' : 'MUSBR', 'CURRENTAMOUNT' : 25}
+hisdict = {'NAME' : 'MUSBR', 'AMOUNT' : 25}
+
