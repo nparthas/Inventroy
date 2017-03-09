@@ -2,12 +2,17 @@
 # MyClass(self, required=True, someNumber=<default>, *args, **kwargs)
 # http://www.informit.com/articles/article.aspx?p=2314818
 # https://docs.djangoproject.com/en/1.10/intro/tutorial04/
-#https://www.tutorialspoint.com/sqlite/sqlite_python.htm
+# https://devcenter.heroku.com/articles/deploying-python
+# https://www.tutorialspoint.com/sqlite/sqlite_python.htm
+# https://maryrosecook.com/blog/post/a-practical-introduction-to-functional-programming
+# scheme
+# https://www.cs.kent.ac.uk/people/staff/dat/miranda/whyfp90.pdf
 
 
 
-import datetime
 import sqlite3 as sq
+
+# Dates in DD-MM-YYYY
 
 
 def createDB(dbfile):
@@ -40,7 +45,8 @@ def createConnectorTable(connection):
 def createHistoryTable(connection):
 
     connection.execute(''' CREATE TABLE HISTORY
-        ( NAME TEXT NOT NULL,
+        (ID INT PRIMARY KEY,
+        NAME TEXT NOT NULL,
         AMOUNT INT NOT NULL,
         DATE TEXT NOT NULL,
         DIFFERENCE INT,
@@ -75,16 +81,16 @@ def fillTable(dict, connection, tablename): # put conenctors for defaultname
             print("INVALID KEYS FOR UPDATE IN CONNECTOR TABLE")
 
     elif tablename.upper() == 'HISTORY':
-        entries = ('NAME' , 'AMOUNT', 'DATE', 'DIFFERENCE')
+        entries = ('NAME', 'AMOUNT', 'DATE', 'DIFFERENCE')
 
-        if set(entries) - set(keySTR) == set() or {'DIFFERENCE'}:
+        if (set(entries) - set(keySTR) == set()) or (set(entries) - set(keySTR) == {'DIFFERENCE'}):
             if 'DIFFERENCE' not in keySTR:
                 try:
                     connection.execute('SELECT AMOUNT '
                                        'FROM HISTORY '
-                                       'WHERE NAME  = ' + dict['NAME'] +
-                                       ' AND ' )
-                    #FINSIH WITH INNER JOIN
+                                       'WHERE NAME  = ' + str(dict['NAME']) +
+                                       ' AND WHERE ID IN (SELECT ID FROM HISTORY WHERE TOP(ID)')
+                    #VERIFY SUBQUERY SYNTAX
                 except:
                     connection.execute('UPDATE HISTORY SET DIFFERENCE = 0 WHERE NAME = ' + dict['NAME'])
                     # TEST
