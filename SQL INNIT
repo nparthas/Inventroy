@@ -8,12 +8,16 @@
 # scheme
 # https://www.cs.kent.ac.uk/people/staff/dat/miranda/whyfp90.pdf
 
-
+# navigate to z-drive: cd\ then cd Z:
+# django innit Z:\Inventory>C:\Users\neilp\AppData\Local\Programs\Python\Python36-32\Scripts\dj
+# ango-admin.exe startproject mysite
+# network access host through address 10.5.112.99:8000
 
 import sqlite3 as sq
+import time
 
 # Dates in DD-MM-YYYY
-
+# Create sample case inventory + rewrite maps
 
 def createDB(dbfile):
     try:
@@ -23,6 +27,14 @@ def createDB(dbfile):
 
     except Exception as e:
         print("Unable to initialize.")
+
+
+def createTableList(connection):
+    connection.execute(''' CREATE TABLE TABLELIST
+        (ID INT PRIMARY KEY,
+        NAME TEXT NOT NULL
+        DATEMODIFIED TEXT); ''')
+    print('Table created successfully')
 
 def createConnectorTable(connection):
 
@@ -38,11 +50,15 @@ def createConnectorTable(connection):
         DATEORDERED TEXT,
         PRODUCTINFO TEXT,
         OFFICEAMOUNT INT,
-        STOREAGEAMOUNT INT);''')
+        STOREAGEAMOUNT INT,
+        SAMPLECASE TEXT);''') # sample case name goes in SAMPLECASE COL
+
+    today = time.strftime('%d-%m-%y')
+    connection.exectute('INSERT INTO TABLELIST (NAME, DATEMODIFIED) VALUES (CONNECTORS, ' + today + ' );')
 
     print('Table created successfully')
 
-def createHistoryTable(connection):
+def createConnectorHistoryTable(connection):
 
     connection.execute(''' CREATE TABLE HISTORY
         (ID INT PRIMARY KEY,
@@ -51,10 +67,25 @@ def createHistoryTable(connection):
         DATE TEXT NOT NULL,
         DIFFERENCE INT,
         FOREIGN KEY(NAME) REFERENCES CONNECTORS(NAME)); ''')
+
+    today = time.strftime('%d-%m-%y')
+    connection.exectute('INSERT INTO TABLELIST (NAME, DATEMODIFIED) VALUES (HISTORY, ' + today + ' );')
+
     print("Table created successfully")
 
+def createSampleCaseTable(connection, name):
 
-def fillTable(dict, connection, tablename): # put conenctors for defaultname
+    connection.execute(' CREATE TABLE SAMPLECASE-' + str(name.upper()) + '''
+         (ID INT PRIMARY KEY,
+        AMOUNT INT,
+        DATE TEXT ); ''')
+
+    today = time.strftime('%d-%m-%y')
+    connection.exectute('INSERT INTO TABLELIST (NAME, DATEMODIFIED) VALUES ( ' + str(name.upper) + ', ' + today + ' );')
+
+    print('Table created successfully')
+
+def fillTable(dict, connection, tableName): # put conenctors for default tablename
 
     keys = [key.upper() for key in list(dict.keys())]
 
@@ -68,7 +99,7 @@ def fillTable(dict, connection, tablename): # put conenctors for defaultname
 
     # DIFFERENTITATES BETWEEN ' AND " IN EXECUTE STATEMENT
 
-    if tablename.upper() == 'CONNECTORS':
+    if tableName.upper() == 'CONNECTORS':
 
         entries  = ( 'ID', 'NAME', 'SERIES', 'CURRENTAMOUNT', 'TYPE', 'PAIRNAME', 'BOXAMOUNT',
         'CARTONAMOUNT', 'DATEORDERED', 'PRODUCTINFO', 'OFFICEAMOUNT', 'STOREAGEAMOUNT')
@@ -80,7 +111,7 @@ def fillTable(dict, connection, tablename): # put conenctors for defaultname
         else:
             print("INVALID KEYS FOR UPDATE IN CONNECTOR TABLE")
 
-    elif tablename.upper() == 'HISTORY':
+    elif tableName.upper() == 'HISTORY':
         entries = ('NAME', 'AMOUNT', 'DATE', 'DIFFERENCE')
 
         if (set(entries) - set(keySTR) == set()) or (set(entries) - set(keySTR) == {'DIFFERENCE'}):
