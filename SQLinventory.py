@@ -82,7 +82,7 @@ def createConnectorsTable(connection):
 def createConnectorHistoryTable(connection):
 
     if not tableExists(connection, 'ConnectorsHistory'):
-        connection.execute(''' CREATE TABLE History
+        connection.execute(''' CREATE TABLE ConnectorsHistory
             (HistoryID INTEGER PRIMARY KEY,
             Name TEXT NOT NULL,
             Amount INT NOT NULL,
@@ -101,7 +101,7 @@ def createConnectorHistoryTable(connection):
 def createSampleCasesTable(connection):
 
     if not tableExists(connection, 'SampleCases'):
-        connection.execute('''CREATE TABLE SampleCase
+        connection.execute('''CREATE TABLE SampleCases
             ( SampleCaseID INTEGER PRIMARY KEY,
             Amount INT,
             Date TEXT ); ''')
@@ -109,7 +109,7 @@ def createSampleCasesTable(connection):
         today = time.strftime('%d-%m-%y')
         todayTouple = (today,)
 
-        connection.execute("INSERT INTO TableList (Name, DateModified) VALUES ('SampleCase', ? );", todayTouple)
+        connection.execute("INSERT INTO TableList (Name, DateModified) VALUES ('SampleCases', ? );", todayTouple)
         connection.commit()
         print('Table created successfully')
     else:
@@ -128,7 +128,7 @@ def createSampleCasesHistoryTable(connection):
 
         today = time.strftime('%d-%m-%y')
         todayTouple = (today,)
-        connection.execute("INSERT INTO TableList (Name, DateModified) VALUES ('SampleCaseHistory', ? );", todayTouple)
+        connection.execute("INSERT INTO TableList (Name, DateModified) VALUES ('SampleCasesHistory', ? );", todayTouple)
         connection.commit()
         print("Table created successfully")
     else:
@@ -136,7 +136,8 @@ def createSampleCasesHistoryTable(connection):
 
 def fillTable(dict, connection, tableName): # put conenctors for default tablename
 
-    keys = [key.title() for key in list(dict.keys())]
+    #keys = [key.title() for key in list(dict.keys())]
+    keys = list(dict.keys())
 
     keySTR = ", ".join(keys)
     keySTR = '(' + keySTR + ')'
@@ -211,7 +212,7 @@ def fillTable(dict, connection, tableName): # put conenctors for default tablena
 #for test use:
 
 db = createDB('Z:\Inventory\InventoryGUI\inventory.db')
-conndict = { 'ID' : 1 , 'NAME' : 'MUSBR', 'CURRENTAMOUNT' : 25}
-hisdict = {'NAME' : 'MUSBR', 'AMOUNT' : 25}
+conndict = { 'ConnectorID' : 1 , 'Name' : 'MUSBR', 'CurrentAmount' : 25}
+hisdict = {'Name' : 'MUSBR', 'Amount' : 25}
 
 
