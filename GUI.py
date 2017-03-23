@@ -2,10 +2,8 @@ import SQLinventory as sq
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
+from sqlite3 import OperationalError
 
-
-#continue work through all_tables
-#fix on exit
 
 TITLE_FONT = ("Myriad Pro", 18, "bold")
 
@@ -42,8 +40,9 @@ class InventoryApp(tk.Tk):
         self.title('Amphenol Commercial I/O')
         self.iconbitmap('Amphenol-Icon.ico')
 
+
         self.frames = {}
-        for F in (MainPage, MakeTables, TableList, PageTwo):
+        for F in (MainPage, MakeTables, TableList, ViewTables):
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
@@ -67,6 +66,8 @@ class MainPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
+        #self.configure(background='#0062a6')
+
         title = tk.Label(self, text="Amphenol Sample Inventory Database", font=TITLE_FONT, fg='#0062a6')
         title.pack(side="top", fill="x", pady=10)
 
@@ -74,8 +75,8 @@ class MainPage(tk.Frame):
                             command=lambda: controller.show_frame("MakeTables"))
         table_list = tk.Button(self, text="View Table List",
                             command=lambda: controller.show_frame("TableList"))
-        button2 = tk.Button(self, text="Go to Page Two",
-                            command=lambda: controller.show_frame("PageTwo"))
+        button2 = tk.Button(self, text="Go to Table Contents",
+                            command=lambda: controller.show_frame("ViewTables"))
         close = tk.Button(self, text="Exit",
                             command=lambda: multi_function(InventoryApp.connection.commit(),
                                                   InventoryApp.connection.close(),
@@ -84,7 +85,7 @@ class MainPage(tk.Frame):
         make_tables.place(rely=1.0, relx=1.0, x=0, y=0, anchor=tk.SE)
         table_list.pack()
         button2.pack()
-        close.pack()
+        close.pack(side='bottom')
 
 
 class MakeTables(tk.Frame):
@@ -93,19 +94,32 @@ class MakeTables(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
         title = tk.Label(self, text="Initialize Tables", font=TITLE_FONT, fg='#0062A6')
-        title.pack(side='top', fill='x', pady=10)
+        title.grid(row=0, column=0, sticky=tk.N, pady=10, columnspan=4)
 
         table_list = tk.Button(self, text='Initialize Table List',
                         command=lambda: sq.createTableList(InventoryApp.connection))
-        table_list.pack(side='top')
+        table_list.grid(row=1, column=1, sticky=tk.W+tk.E)
 
         connectors_table = tk.Button(self, text='Initialize Connectors Table',
                         command=lambda: sq.createConnectorsTable(InventoryApp.connection))
-        connectors_table.pack(side='top')
+        connectors_table.grid(row=2, column=1, sticky=tk.W+tk.E)
+
+        connectors_history_table = tk.Button(self, text='Initialize Connectors History Table',
+                        command=lambda: sq.createConnectorHistoryTable(InventoryApp.connection))
+        connectors_history_table.grid(row=3, column=1, sticky=tk.W+tk.E)
+
+        sample_cases_table = tk.Button(self, text='Initialize Sample Cases Table',
+                        command=lambda: sq.createSampleCasesTable(InventoryApp.connection))
+        sample_cases_table.grid(row=4, column=1, sticky=tk.W+tk.E)
+
+        sample_cases_history_table = tk.Button(self, text='Initialize Sample Cases History Table',
+                        command=lambda: sq.createSampleCasesHistoryTable(InventoryApp.connection))
+        sample_cases_history_table.grid(row=5, column=1, sticky=tk.W+tk.E)
 
         home = tk.Button(self, text='Go to the main page',
                         command=lambda: controller.show_frame('MainPage'))
-        home.pack()
+
+        home.grid(row=6, column=0, sticky=tk.S)
 
 
 class TableList(tk.Frame):
@@ -114,27 +128,96 @@ class TableList(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
         title = tk.Label(self, text="List of All Tables:", font=TITLE_FONT, fg='#0062A6')
-        title.pack(side="top", fill="x", pady=10)
+        title.grid(row=0, column=1, pady=10)
 
+        counter = 2
 
+        try:
+            get_tables = InventoryApp.connection.execute('SELECT * FROM TableList')
 
-        #all_tables = tk.Label(self, text=)
+            table_map = ' '.join(map(lambda x: x[0], get_tables.description))
+            table_headings = tk.Label(self, text=table_map)
+            table_headings.grid(row=1, column=1, sticky=tk.W)
+
+            for item in get_tables:
+                tk.Label(self, text=item).grid(row=counter, column=1, sticky=tk.W)
+                counter += 1
+
+        except OperationalError:
+            unable_to_open = tk.Label(self, text='Unable to open TableList table')
+            unable_to_open.grid(column=1)
 
         home = tk.Button(self, text="Go to the main page",
-                           command=lambda: controller.show_frame("MainPage"))
-        home.pack()
+                        command=lambda: controller.show_frame("MainPage"))
+        home.grid(row=(counter + 1), sticky=tk.S)
 
 
-class PageTwo(tk.Frame):
+class ViewTables(tk.Frame):
 
     def __init__(self, parent, controller):
+
+        self.entry_temp_var = ''
+
         tk.Frame.__init__(self, parent)
         self.controller = controller
-        title = tk.Label(self, text="This is page 2", font=TITLE_FONT)
-        title.pack(side="top", fill="x", pady=10)
+        title = tk.Label(self, text="View Table Contents", font=TITLE_FONT, fg='#0062a6')
+        title.grid(row=0, column=0, pady=10, columnspan=4)
+
+        info_grid = tk.Label(self, text='', justify='left')
+        info_grid.grid(row=3, columnspan=4, rowspan=3)
+
+        view_connectors = tk.Button(self, text='View Connectors',
+                        command=lambda: info_grid.configure(
+                            text=sq.view_values(
+                                InventoryApp.connection, 'SELECT * FROM Connectors', 'Connectors')))
+        view_connectors.grid(row=1, column=0, sticky=tk.W+tk.E)
+
+        view_connectors_history = tk.Button(self, text='View Connectors History',
+                        command=lambda: info_grid.configure(
+                            text=sq.view_values(
+                                InventoryApp.connection, 'SELECT * FROM ConnectorsHistory', 'ConnectorsHistory')))
+        view_connectors_history.grid(row=1, column=1, sticky=tk.W+tk.E)
+
+        view_sample_cases = tk.Button(self, text='View Sample Cases',
+                                            command=lambda: info_grid.configure(
+                                                text=sq.view_values(
+                                                    InventoryApp.connection, 'SELECT * FROM SampleCases',
+                                                    'SampleCases')))
+        view_sample_cases.grid(row=1, column=2, sticky=tk.W+tk.E)
+
+        view_sample_cases_history = tk.Button(self, text='View Sample Cases History',
+                                            command=lambda: info_grid.configure(
+                                                text=sq.view_values(
+                                                    InventoryApp.connection, 'SELECT * FROM SampleCasesHistory',
+                                                    'SampleCasesHistory')))
+        view_sample_cases_history.grid(row=1, column=3, sticky=tk.W+tk.E)
+
+        variable_lookup_text = tk.Label(self, text='Variable Lookup')
+        variable_lookup_text.grid(row=2, column=0, sticky=tk.W+tk.E)
+
+        variable_lookup = tk.Entry(self, width=50)
+        variable_lookup.insert(0, "Input specifier type, requirement, then table")
+        variable_lookup.grid(row=2, column=1, columnspan=2)
+
+        def get_entry():
+            self.entry_temp_var = variable_lookup.get()
+            variable_lookup.delete(0, tk.END)
+
+
+        enter_button = tk.Button(self, text="Enter",
+                        command=lambda: get_entry())
+        enter_button.grid(row=2, column=3, sticky=tk.W+tk.E)
+
+        if self.entry_temp_var != '':
+            pass
+            #resume work here
+
+
         home = tk.Button(self, text="Go to the main page",
-                           command=lambda: controller.show_frame("MainPage"))
-        home.pack()
+                        command=lambda: controller.show_frame("MainPage"))
+        home.grid(column=0, row=7)
+
+
 
 
 if __name__ == "__main__":
