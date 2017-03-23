@@ -8,6 +8,7 @@
 # scheme
 # https://www.cs.kent.ac.uk/people/staff/dat/miranda/whyfp90.pdf
 # pyqt
+#http://www.learncpp.com/cpp-tutorial/71-function-parameters-and-arguments/
 
 # navigate to z-drive: cd\ then cd Z:
 # django innit Z:\Inventory>C:\Users\neilp\AppData\Local\Programs\Python\Python36-32\Scripts\dj
@@ -79,7 +80,7 @@ def createConnectorsTable(connection):
         print('Table already exists')
 
 
-def createConnectorHistoryTable(connection):
+def createConnectorsHistoryTable(connection):
 
     if not tableExists(connection, 'ConnectorsHistory'):
         connection.execute(''' CREATE TABLE ConnectorsHistory
@@ -208,6 +209,36 @@ def fillTable(dict, connection, tableName): # put conenctors for default tablena
         print('Not a valid table')
 
     connection.commit()
+
+
+def has_values(connection, table):
+    return bool(connection.execute('SELECT COUNT(*) FROM ' + table).fetchall()[0][0])
+
+
+def get_format_values(connection, statement):
+    values_list = []
+    characters = ['[', ']', '(', ')', "'", ',']
+
+    values = connection.execute(statement)
+    for value in values:
+        values_list.append(value)
+
+    values_str = str(values_list)
+    for chars in characters:
+        if chars in values_str:
+            if chars == '(':
+                values_str = values_str.replace(chars, '\n ')
+            else:
+                values_str = values_str.replace(chars, "")
+
+    return values_str
+
+
+def view_values(connection, statement, table):
+    if has_values(connection, table):
+        return get_format_values(connection, statement)
+    else:
+        return 'Table is empty'
 
 #for test use:
 
