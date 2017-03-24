@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 from sqlite3 import OperationalError
+from functools import reduce
 
 
 TITLE_FONT = ("Myriad Pro", 18, "bold")
@@ -156,7 +157,7 @@ class ViewTables(tk.Frame):
 
     def __init__(self, parent, controller):
 
-        self.entry_temp_var = ''
+        self.entry_temp_list = []
 
         tk.Frame.__init__(self, parent)
         self.controller = controller
@@ -195,22 +196,36 @@ class ViewTables(tk.Frame):
         variable_lookup_text = tk.Label(self, text='Variable Lookup')
         variable_lookup_text.grid(row=2, column=0, sticky=tk.W+tk.E)
 
-        variable_lookup = tk.Entry(self, width=50)
-        variable_lookup.insert(0, "Input specifier type, requirement, then table")
-        variable_lookup.grid(row=2, column=1, columnspan=2)
+        variable_lookup_criteria = tk.Entry(self, width=30)
+        variable_lookup_criteria.insert(0, "Input specifier type")
+        variable_lookup_criteria.grid(row=2, column=1, )
 
-        def get_entry():
-            self.entry_temp_var = variable_lookup.get()
-            variable_lookup.delete(0, tk.END)
+        variable_lookup_value = tk.Entry(self, width=30)
+        variable_lookup_value.insert(0, "Input specifier value")
+        variable_lookup_value.grid(row=2, column=2)
 
+        variable_lookup_table = tk.Entry(self, width=30)
+        variable_lookup_table.insert(0, 'Input table')
+        variable_lookup_table.grid(row=2, column=3)
+
+        def get_entry(*args):
+            if args is not None:
+                self.entry_temp_list = []
+                for item in args:
+                    self.entry_temp_list.append(item.get())
+                    item.delete(0, tk.END)
 
         enter_button = tk.Button(self, text="Enter",
-                        command=lambda: get_entry())
-        enter_button.grid(row=2, column=3, sticky=tk.W+tk.E)
+                        command=lambda: get_entry(variable_lookup_criteria,
+                                                  variable_lookup_value,
+                                                  variable_lookup_table))
 
-        if self.entry_temp_var != '':
-            pass
-            #resume work here
+        enter_button.grid(row=3, column=3, sticky=tk.W+tk.E)
+
+        if self.entry_temp_list and sq.exists_table(InventoryApp.connection, self.entry_temp_list[2]):
+            execute_tuple = tuple(self.entry_temp_list[:2])
+            InventoryApp.execute('SELECT * FROM {0} WHERE ? GLOB *?*'.format(self.entry_temp_list[2]), execute_tuple)
+            # fix glob expression
 
 
         home = tk.Button(self, text="Go to the main page",
