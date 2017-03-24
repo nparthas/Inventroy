@@ -8,7 +8,7 @@
 # scheme
 # https://www.cs.kent.ac.uk/people/staff/dat/miranda/whyfp90.pdf
 # pyqt
-#http://www.learncpp.com/cpp-tutorial/71-function-parameters-and-arguments/
+# http://www.learncpp.com/cpp-tutorial/71-function-parameters-and-arguments/
 
 # navigate to z-drive: cd\ then cd Z:
 # django innit Z:\Inventory>C:\Users\neilp\AppData\Local\Programs\Python\Python36-32\Scripts\dj
@@ -239,6 +239,12 @@ def view_values(connection, statement, table):
         return get_format_values(connection, statement)
     else:
         return 'Table is empty'
+
+def exists_table(connection, name):
+    query = "SELECT 1 FROM sqlite_master WHERE type='table' and name = ?"
+    return connection.execute(query, (name,)).fetchone() is not None
+
+
 
 #for test use:
 
