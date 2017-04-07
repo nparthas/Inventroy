@@ -33,6 +33,7 @@ def createDB(dbfile):
 
     except OperationalError:
         print("Unable to initialize.")
+        return False
 
 
 def createTableList(connection):
@@ -98,7 +99,7 @@ def createSampleCasesTable(connection):
     if not exists_table(connection, 'SampleCases'):
         connection.execute('''CREATE TABLE SampleCases
             ( SampleCaseID INTEGER PRIMARY KEY,
-            Name INT,
+            Name TEXT NOT NULL UNIQUE,
             Amount INT,
             Date TEXT ); ''')
 
@@ -210,6 +211,7 @@ def fillTable(dict, connection, tableName):
         entries = ('Name', 'Amount', 'Date', 'Difference')
 
         if (set(entries) - set(keySTR) == set()) or (set(entries) - set(keySTR) == {'Difference'}):
+            # REDO STATEMENT
 
             connection.exectute('INSERT INTO ConnectorsHistory ' + keySTR + 'VALUES ' + valuesSTR)
 
@@ -237,12 +239,59 @@ def fillTable(dict, connection, tableName):
     elif tableName == 'SampleCases':
         entries = ('Name', 'Amount', 'Date')
 
-        if set(entries) - set(keySTR) == set() or set(entries) - set(keySTR) == {'Date'}:
-            if connection.execute('''SELECT EXISTS
-                    (SELECT 1 FROM SampleCases WHERE Name = ?''', (dict['Name'],)).fetchall()[0][0]:
-                pass
-                # FINISH
+        if set(keys).issubset(entries):
 
+            if 'Date' not in dict.keys():
+                dict['Date'] = time.strftime('%d-%m-%y')
+
+            if connection.execute('''SELECT EXISTS
+                                (SELECT 1 FROM SampleCases WHERE Name = ?)''', (dict['Name'],)).fetchall()[0][0]:
+
+                insert_list = re.sub(r"[\[\]);]|UNION", "",
+                                     str(list(zip(
+                                         dict.keys(), dict.values()))).replace("',", "=").replace("('", ""),
+                                     flags=re.IGNORECASE)
+                try:
+                    try:
+                        old_amount = connection.execute(
+                            "SELECT Amount FROM Connectors WHERE Name = ?", dict['Name']).fetchall()[0][0]
+
+                    except OperationalError:
+                        old_amount = 0
+
+                    try:
+                        history_amount = connection.execute('''
+                            SELECT AMOUNT
+                            FROM SampleCasesHistory
+                            WHERE Name = ?
+                            AND SampleCaseHistoryID =  (SELECT MAX(SampleCaseHistoryID
+                                                        FROM ConnectorsHistory
+                                                        WHERE Name = ?''', (dict['Name'], dict["Name"])).fetchall()[0][0]
+                    except OperationalError:
+                        history_amount = 0
+
+                    difference = old_amount - history_amount
+
+                    entry_tuple = (dict['Name'], old_amount, dict['Date'], difference)
+
+                    connection.execute(
+                        "INSERT INTO SampleCasesHistory (Name, Amount, Date, Difference) VALUES (?,?,?,?)", entry_tuple)
+                    print("Records successfully added to sample cases history table")
+
+                    connection.execute(
+                        "UPDATE SampleCases SET {0} WHERE Name = ?".format(str(insert_list)), (dict["Name"],))
+                    print("Records successfully added to the sample cases table")
+
+                except OperationalError:
+                    print('Operational Error, no records modified')
+            else:
+                try:
+                    connection.execute("INSERT INTO SampleCases {0} VALUES {1}".format(keySTR, valuesSTR))
+                    connection.execute("UPDATE SampleCases SET Date = ? WHERE Name = ?", (dict['Date']), dict["Name"])
+
+                except OperationalError:
+
+                    print("Operational Error, no records modified")
         else:
             print('Invalid keys for update in Sample Cases table')
 
@@ -261,7 +310,6 @@ def fillTable(dict, connection, tableName):
 
                 except OperationalError:
                     connection.execute('UPDATE SampleCasesHistory SET Difference = 0 WHERE Name = ' + dict['Name'])
-
 
             connection.exectute('INSERT INTO SampleCasesHistory ' + keySTR + 'VALUES ' + valuesSTR)
             print('Records successfully added to SampleCasesHistory table.')
@@ -335,8 +383,14 @@ def query_table(connection, entry_list):  # entry_list is column criteria value
     return query_values
 
 
+def query_headings(connection, table_name):
+    table_headings = connection.execute("SELECT * FROM {0}".format(table_name))
+    return ' '.join(map(lambda x: x[0], table_headings.description)) + " \n"
+
 # for test use:
 
 db = createDB('Z:\Inventory\InventoryGUI\inventory.db')
 conn_dict = {'ConnectorID': 1, 'Name': 'MUSBR', 'CurrentAmount': 10}
 his_dict = {'Name': 'MUSBR', 'Amount': 25}
+sample_dict = {'Name': 'HARSH', 'Amount': 5}
+
