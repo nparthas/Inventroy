@@ -44,9 +44,11 @@ def createTableList(connection):
             DateModified TEXT); ''')
         connection.commit()
         print('Table created successfully')
+        return 'TableList table created successfully'
 
     else:
         print('Table already exists')
+        return 'TableList table already exists'
 
 
 def createConnectorsTable(connection):
@@ -71,9 +73,11 @@ def createConnectorsTable(connection):
         connection.execute("INSERT INTO TableList (Name, DateModified) VALUES ('Connectors', ? );", todayTuple)
         connection.commit()
         print('Table created successfully')
+        return 'Connectors table created successfully'
 
     else:
         print('Table already exists')
+        return "Connectors table already exists"
 
 
 def createConnectorsHistoryTable(connection):
@@ -91,8 +95,10 @@ def createConnectorsHistoryTable(connection):
         connection.execute("INSERT INTO TableList (Name, DateModified) VALUES ('ConnectorsHistory', ? );", todayTuple)
         connection.commit()
         print("Table created successfully")
+        return 'ConnectorsHistory table created successfully'
     else:
         print('Table already exists')
+        return 'ConnectorsHistory table already exists'
 
 
 def createSampleCasesTable(connection):
@@ -109,8 +115,10 @@ def createSampleCasesTable(connection):
         connection.execute("INSERT INTO TableList (Name, DateModified) VALUES ('SampleCases', ? );", todayTuple)
         connection.commit()
         print('Table created successfully')
+        return 'SampleCases table created successfully'
     else:
         print('Table already exists')
+        return 'SampleCases table already exists'
 
 
 def createSampleCasesHistoryTable(connection):
@@ -128,8 +136,10 @@ def createSampleCasesHistoryTable(connection):
         connection.execute("INSERT INTO TableList (Name, DateModified) VALUES ('SampleCasesHistory', ? );", todayTouple)
         connection.commit()
         print("Table created successfully")
+        return 'SampleCasesHistory table created successfully'
     else:
         print('Table already exists')
+        return 'SampleCasesHistory table already exists'
 
 
 def fillTable(dict, connection, tableName):
@@ -372,21 +382,22 @@ def exists_column(connection, table_name, column_name):
 
 
 def query_table(connection, entry_list):  # entry_list is column criteria value
-    query_values = 'Error (Check Capitalization)'
+    connection_object = 'Error (Check Capitalization)'
     if entry_list and exists_table(connection, entry_list[2]):
         if exists_column(connection, entry_list[2], entry_list[0]):
             entry_list[1] = ''.join(['*', entry_list[1], '*'])
             execute_tuple = (entry_list[1],)
-            query = connection.execute(
+            connection_object = connection.execute(
                 "SELECT * FROM {0} WHERE {1} GLOB ?".format(entry_list[2], entry_list[0]), execute_tuple)
-            query_values = format_values(retrieve_values(query))
-    return query_values
+    return connection_object
 
 
 def query_headings(connection, table_name):
-    table_headings = connection.execute("SELECT * FROM {0}".format(table_name))
-    return ' '.join(map(lambda x: x[0], table_headings.description)) + " \n"
-
+    try:
+        table_headings = connection.execute("SELECT * FROM {0}".format(table_name))
+        return ' '.join(map(lambda x: x[0], table_headings.description)) + " \n"
+    except OperationalError:
+        return 'Invalid: '
 # for test use:
 
 db = createDB('Z:\Inventory\InventoryGUI\inventory.db')
