@@ -4,6 +4,15 @@ from tkinter import messagebox
 # from tkinter import ttk
 from sqlite3 import OperationalError
 import openpyxl as xl
+import time
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
+# logging.disable(logging.CRITICAL)
+# logging.disable(logging.DEBUG)
+
+logging.debug('Start of program')
 
 # from functools import reduce
 
@@ -57,7 +66,7 @@ class InventoryApp(tk.Tk):
         self.iconbitmap('Amphenol-Icon.ico')
 
         self.frames = {}
-        for F in (MainPage, MakeTables, TableList, ViewTables):
+        for F in (MainPage, MakeTables, TableList, ViewTables, AddValues):
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
@@ -93,25 +102,28 @@ class MainPage(tk.Frame):
         # self.configure(background='#0062a6')
 
         title = tk.Label(self, text="Amphenol Sample Inventory Database", font=TITLE_FONT, fg='#0062a6')
-        title.pack(side="top", fill="x", pady=10)
+        title.pack(side="top", fill="x", pady=(10, 20))
 
-        make_tables = tk.Button(self, text='Make Tables',
+        make_tables = tk.Button(self, text='Make Tables', width=20,
                                 command=lambda: controller.show_frame("MakeTables"))
-        table_list = tk.Button(self, text="View Table List",
+        table_list = tk.Button(self, text="View Table List", width=30,
                                command=lambda: controller.show_frame("TableList"))
-        button2 = tk.Button(self, text="Go to Table Contents",
-                            command=lambda: controller.show_frame("ViewTables"))
+        view_tables = tk.Button(self, text="Go to Table Contents", width=30,
+                                command=lambda: controller.show_frame("ViewTables"))
+        add_values = tk.Button(self, text="Add Values", width=30,
+                               command=lambda: controller.show_frame('AddValues'))
 
         if InventoryApp.connection:
-            close = tk.Button(self, text="Exit",
+            close = tk.Button(self, text="Exit", width=15,
                               command=lambda: InventoryApp.on_closing(app))
         else:
-            close = tk.Button(self, text='Exit', command=lambda: multi_function(
+            close = tk.Button(self, text='Exit', width=15, command=lambda: multi_function(
                 InventoryApp.work_book.save('Inventory.xlsx'), exit()))
 
         make_tables.place(rely=1.0, relx=1.0, x=0, y=0, anchor=tk.SE)
         table_list.pack()
-        button2.pack()
+        view_tables.pack()
+        add_values.pack()
         close.pack(side='bottom')
 
 
@@ -163,54 +175,58 @@ class TableList(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
 
-        if InventoryApp.connection.execute("SELECT MAX(TableListID) FROM TableList").fetchall()[0][0] > 10:
-            InventoryApp.connection.execute('''
-                DELETE FROM TableList
-                WHERE TableListID NOT IN (
-                    SELECT MAX(TableListID)
-                    FROM TableList
-                    GROUP BY Name)''')
+        sq.trim_TableList(InventoryApp.connection)
 
-        def refresh_values():
-            try:
-                headings = sq.query_headings(InventoryApp.connection, 'TableList')
+        title = tk.Label(self, text='List of All Tables: ', font=TITLE_FONT, fg='#0062A6')
+        title.pack(anchor=tk.N, side=tk.TOP, fill=tk.X, pady=(10, 30))
 
-                values = sq.format_values(
-                    sq.retrieve_values(
-                        InventoryApp.connection.execute('SELECT * FROM TableList')))
-                table_contents.configure(text=headings + values)
-
-            except OperationalError:
-                unable_to_open_error = tk.Label(table_frame, text='Unable to open TableList table')
-                unable_to_open_error.pack()
-
-        title = tk.Label(self, text="List of All Tables:", font=TITLE_FONT, fg='#0062A6')
-        title.pack(anchor=tk.N, side=tk.TOP, fill=tk.X, pady=(5, 20))
-
-        table_frame = tk.Frame(self)
-        table_frame.pack(anchor=tk.CENTER, side=tk.TOP, fill=tk.X)
-
-        try:
-            table_headings = sq.query_headings(InventoryApp.connection, 'TableList')
-
-            table_values = sq.format_values(
-                sq.retrieve_values(
-                    InventoryApp.connection.execute('SELECT * FROM TableList')))
-            table_contents = tk.Label(table_frame, text=table_headings + table_values, justify='left')
-            table_contents.pack(anchor=tk.N, side=tk.TOP, fill=tk.X)
-
-        except (OperationalError, AttributeError):
-            unable_to_open = tk.Label(table_frame, text='Unable to open TableList table')
-            unable_to_open.pack()
+        self.table_frame = tk.Frame(self)
+        self.table_frame.pack(anchor=tk.N, side=tk.TOP)
 
         home = tk.Button(self, text="Go to the main page", command=lambda: controller.show_frame("MainPage"))
         home.pack(anchor=tk.S, side=tk.LEFT)
 
-        refresh = tk.Button(self, text='Refresh list', command=lambda: refresh_values())
+        refresh = tk.Button(self, text='Refresh list',
+                            command=lambda: self.refresh_values(
+                                InventoryApp.connection.execute('''SELECT TableListID as 'Table List ID',
+                                                                Name,
+                                                                DateModified as 'Date Modified'
+                                                                FROM TableList''')))
         refresh.pack(anchor=tk.S, side=tk.RIGHT)
 
+        self.refresh_values(
+            InventoryApp.connection.execute('''SELECT TableListID as 'Table List ID',
+                                                                Name,
+                                                                DateModified as 'Date Modified'
+                                                                FROM TableList'''))
 
-class ViewTables(tk.Frame):  # Rewrite so that values show up in a grid
+    def refresh_values(self, connection_object):
+        for widget in self.table_frame.winfo_children():
+            widget.destroy()
+
+        if connection_object is not None:
+            i = 0
+            j = 0
+            for item in connection_object.description:
+                spot = tk.Label(self.table_frame, text=item[0], anchor=tk.W, bg="#B8E1EB")
+                spot.grid(row=i, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
+                j += 1
+            i += 1
+
+            for row in connection_object:
+                j = 0
+                for value in row:
+                    spot = tk.Label(self.table_frame, text=value, anchor=tk.W)
+                    spot.grid(row=i, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
+                    #if i % 2 == 1:
+                    #    spot.configure(bg='#b8e1eb')
+                    j += 1
+                i += 1
+            for k in range(3):
+                padding_row = tk.Label(self.table_frame, text="", padx=75)
+                padding_row.grid(row=i, column=k, sticky=tk.W+tk.E)
+
+class ViewTables(tk.Frame):
     def __init__(self, parent, controller):
 
         def get_entry(*args):
@@ -231,47 +247,40 @@ class ViewTables(tk.Frame):  # Rewrite so that values show up in a grid
         def on_frame_configure(event):
             info_grid_canvas.configure(scrollregion=info_grid_canvas.bbox("all"))
 
-        def refresh_values(connection_object):
-            for widget in info_grid_frame.winfo_children():
-                widget.destroy()
-
-            if connection_object == 'Error (Check Capitalization)':
-                spot = tk.Label(info_grid_frame, text="Error (Check Capitalization)")
-                spot.pack(anchor=tk.N, side=tk.TOP)
-                return None
-
-            if connection_object != '':
-                i = 0
-                j = 0
-                for item in connection_object.description:
-                    spot = tk.Label(info_grid_frame, text=item[0])
-                    spot.grid(row=i, column=j, sticky=tk.N + tk.E + tk.S + tk.W, padx=7)
-                    j += 1
-                i += 1
-                j = 0
-
-                for row in connection_object:
-                    for value in row:
-                        spot = tk.Label(info_grid_frame, text=value)
-                        spot.grid(row=i, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
-                        if i % 2 == 1:
-                            spot.configure(bg='#b8e1eb')
-                        j += 1
-                    i += 1
-                    j = 0
+        def create_sheet():
+            self.work_sheet = InventoryApp.work_book.create_sheet()
+            self.work_sheet.title = 'Inventory{0} '.format(time.strftime('%d-%m-%y'))
 
         def print_to_excel():
+            create_sheet()
 
-            work_sheet = InventoryApp.work_book.create_sheet()
+            try:
+                num_cols = self.label_information.cget('text').split()[1]
+                self.label_information.destroy()
 
-            for widget in info_grid_frame.winfo_children():
-                widget['text']
-                pass
+                current_row = 1
+                current_col = 1
 
-            # FINISH
+                for widget in self.info_grid_frame.winfo_children():
+                    cell = self.work_sheet.cell(row=current_row, column=current_col)
+                    cell.value = widget['text']
+
+                    current_col += 1
+
+                    if current_col > int(num_cols):
+                        current_col = 1
+                        current_row += 1
+
+                InventoryApp.work_book.save('Inventory.xlsx')
+                excel_result.configure(text='Results printed')
+
+            except Exception:
+                excel_result.configure(text='Error: results not printed')
 
         tk.Frame.__init__(self, parent)
         self.controller = controller
+        self.label_information = None  # For initialization
+        self.work_sheet = None  # For initialization
 
         title_frame = tk.Frame(self)
         title_frame.pack(anchor=tk.N, side=tk.TOP, fill=tk.X, pady=(5, 20))
@@ -293,8 +302,8 @@ class ViewTables(tk.Frame):  # Rewrite so that values show up in a grid
 
         info_grid_canvas = tk.Canvas(self, borderwidth=0)
 
-        info_grid_frame = tk.Frame(info_grid_canvas)
-        info_grid_frame.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH)
+        self.info_grid_frame = tk.Frame(info_grid_canvas)
+        self.info_grid_frame.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH)
 
         info_grid_scrollbar = tk.Scrollbar(self, orient='vertical', command=info_grid_canvas.yview)
 
@@ -302,9 +311,9 @@ class ViewTables(tk.Frame):  # Rewrite so that values show up in a grid
 
         info_grid_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         info_grid_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        info_grid_canvas.create_window((4, 4), window=info_grid_frame, anchor=tk.NW, tags='info_grid_frame')
+        info_grid_canvas.create_window((4, 4), window=self.info_grid_frame, anchor=tk.NW, tags='info_grid_frame')
 
-        info_grid_frame.bind("<Configure>", on_frame_configure)
+        self.info_grid_frame.bind("<Configure>", on_frame_configure)
 
         home = tk.Button(home_frame, text="Go to the main page", command=lambda: controller.show_frame("MainPage"))
         home.pack(anchor=tk.S, side=tk.LEFT)
@@ -313,24 +322,24 @@ class ViewTables(tk.Frame):  # Rewrite so that values show up in a grid
         title.pack()
 
         view_connectors = tk.Button(view_tables_frame, text='View Connectors',
-                                    command=lambda: refresh_values(
+                                    command=lambda: self.refresh_values(
                                         InventoryApp.connection.execute('SELECT * FROM Connectors')))
         view_connectors.grid(column=0, row=0, sticky=tk.W + tk.E)
 
         view_connectors_history = tk.Button(view_tables_frame, text='View Connectors History',
-                                            command=lambda: refresh_values(
+                                            command=lambda: self.refresh_values(
                                                 InventoryApp.connection.execute(
                                                     'SELECT * FROM ConnectorsHistory')))
         view_connectors_history.grid(column=2, row=0, sticky=tk.W + tk.E)
 
         view_sample_cases = tk.Button(view_tables_frame, text='View Sample Cases',
-                                      command=lambda: refresh_values(
+                                      command=lambda: self.refresh_values(
                                           InventoryApp.connection.execute(
                                               'SELECT * FROM SampleCases')))
         view_sample_cases.grid(column=1, row=0, sticky=tk.W + tk.E)
 
         view_sample_cases_history = tk.Button(view_tables_frame, text='View Sample Cases History',
-                                              command=lambda: refresh_values(
+                                              command=lambda: self.refresh_values(
                                                   InventoryApp.connection.execute(
                                                       'SELECT * FROM SampleCasesHistory')))
         view_sample_cases_history.grid(column=3, row=0, sticky=tk.W + tk.E)
@@ -360,24 +369,70 @@ class ViewTables(tk.Frame):  # Rewrite so that values show up in a grid
         variable_lookup_table.grid(column=3, row=1, sticky=tk.W)
 
         enter_button = tk.Button(entry_frame, text='Enter',
-                                 command=lambda: refresh_values(
+                                 command=lambda: self.refresh_values(
                                      sq.query_table(InventoryApp.connection, get_entry(
                                          variable_lookup_column,
                                          variable_lookup_criteria,
                                          variable_lookup_table))))
-        enter_button.bind("<Return>", (lambda event: refresh_values(
-                                     sq.query_table(InventoryApp.connection, get_entry(
-                                         variable_lookup_column,
-                                         variable_lookup_criteria,
-                                         variable_lookup_table)))))
-        enter_button.grid(column=3, row=2, sticky=tk.W + tk.E)
+        enter_button.bind("<Return>", (lambda event: self.refresh_values(
+            sq.query_table(InventoryApp.connection, get_entry(
+                variable_lookup_column,
+                variable_lookup_criteria,
+                variable_lookup_table)))))
+        enter_button.grid(column=2, row=2, sticky=tk.W + tk.E)
 
-        erase_button = tk.Button(entry_frame, text='Erase', command=lambda: refresh_values(''))
-        erase_button.bind("<Return>", lambda event: refresh_values(""))
+        erase_button = tk.Button(entry_frame, text='Erase', command=lambda: self.refresh_values(""))
+        erase_button.bind("<Return>", lambda event: self.refresh_values(""))
 
-        erase_button.grid(column=3, row=3, sticky=tk.W + tk.E)
+        erase_button.grid(column=3, row=2, sticky=tk.W + tk.E)
+
+        print_to_excel_button = tk.Button(entry_frame, text="Print to Excel", command=print_to_excel)
+        print_to_excel_button.bind("<Return>", lambda event: print_to_excel())
+
+        print_to_excel_button.grid(column=3, row=3, sticky=tk.W + tk.E)
+
+        excel_result = tk.Label(entry_frame, text="")
+        excel_result.grid(column=2, row=3, sticky=tk.W + tk.E)
+
+    def refresh_values(self, connection_object):
+        for widget in self.info_grid_frame.winfo_children():
+            widget.destroy()
+
+        if connection_object == 'Error (Check Capitalization)':
+            spot = tk.Label(self.info_grid_frame, text="Error (Check Capitalization)")
+            spot.pack(anchor=tk.N, side=tk.TOP)
+            return None
+
+        if connection_object != '':
+            i = 0
+            j = 0
+            for item in connection_object.description:
+                spot = tk.Label(self.info_grid_frame, text=item[0])
+                spot.grid(row=i, column=j, sticky=tk.N + tk.E + tk.S + tk.W, padx=7)
+                j += 1
+            i += 1
+            j = 0
+
+            for row in connection_object:
+                j = 0
+                for value in row:
+                    spot = tk.Label(self.info_grid_frame, text=value)
+                    spot.grid(row=i, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
+                    if i % 2 == 1:
+                        spot.configure(bg='#b8e1eb')
+                    j += 1
+                i += 1
+
+            self.label_information = tk.Label(self.info_grid_frame, fg='#F0F0ED', text="{0} {1}".format(i, j))
+            self.label_information.grid(row=i + 1, column=j + 1)
+
+
+class AddValues(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+
 
 if __name__ == "__main__":
     app = InventoryApp()
     app.mainloop()
-
