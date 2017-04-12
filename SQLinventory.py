@@ -10,9 +10,9 @@
 # pyqt
 # http://www.learncpp.com/cpp-tutorial/71-function-parameters-and-arguments/
 
-# navigate to z-drive: cd\ then cd Z:
+# navigate to z-drive: cd\ then Z:
 # django innit Z:\Inventory>C:\Users\neilp\AppData\Local\Programs\Python\Python36-32\Scripts\dj
-# ango-admin.exe startproject mysite
+# django-admin.exe startproject mysite
 # network access host through address 10.5.112.99:8000
 
 import sqlite3 as sq
@@ -58,7 +58,7 @@ def createConnectorsTable(connection):
             Name TEXT NOT NULL UNIQUE,
             CurrentAmount INT NOT NULL,
             Series TEXT,
-            Type TEXT,
+            Family TEXT,
             PairName TEXT,
             BoxAmount INT,
             CartonAmount INT,
@@ -398,10 +398,22 @@ def query_headings(connection, table_name):
         return ' '.join(map(lambda x: x[0], table_headings.description)) + " \n"
     except OperationalError:
         return 'Invalid: '
-# for test use:
 
+
+def trim_TableList(connection):
+    if connection.execute("SELECT MAX(TableListID) FROM TableList").fetchall()[0][0] > 10:
+        connection.execute('''
+            DELETE FROM TableList
+            WHERE TableListID NOT IN (
+                SELECT MAX(TableListID)
+                FROM TableList
+                GROUP BY Name)''')
+
+
+# for test use:
+"""
 db = createDB('Z:\Inventory\InventoryGUI\inventory.db')
 conn_dict = {'ConnectorID': 1, 'Name': 'MUSBR', 'CurrentAmount': 10}
 his_dict = {'Name': 'MUSBR', 'Amount': 25}
 sample_dict = {'Name': 'HARSH', 'Amount': 5}
-
+"""
