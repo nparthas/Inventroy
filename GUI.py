@@ -108,7 +108,7 @@ class MainPage(tk.Frame):
                                 command=lambda: controller.show_frame("MakeTables"))
         table_list = tk.Button(self, text="View Table List", width=30,
                                command=lambda: controller.show_frame("TableList"))
-        view_tables = tk.Button(self, text="Go to Table Contents", width=30,
+        view_tables = tk.Button(self, text="View Table Contents", width=30,
                                 command=lambda: controller.show_frame("ViewTables"))
         add_values = tk.Button(self, text="Add Values", width=30,
                                command=lambda: controller.show_frame('AddValues'))
@@ -159,12 +159,16 @@ class MakeTables(tk.Frame):
         sample_cases_history_table = tk.Button(button_frame, text="Initialize Sample Cases History Table", width=40,
                                                command=lambda: result.configure(
                                                    text=sq.createSampleCasesHistoryTable(InventoryApp.connection)))
+        changelog_table = tk.Button(button_frame, text='Initialize Changelog Table', width=40,
+                                    command=lambda: result.configure(
+                                        text=sq.create_changelog_table(InventoryApp.connection)))
 
         table_list.pack()
         connectors_table.pack()
         connectors_history_table.pack()
         sample_cases_table.pack()
         sample_cases_history_table.pack()
+        changelog_table.pack()
 
         home = tk.Button(self, text="Go to the main page", command=lambda: controller.show_frame("MainPage"))
         home.pack(anchor=tk.S, side=tk.LEFT, pady=(15, 0))
@@ -175,7 +179,11 @@ class TableList(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
 
-        sq.trim_TableList(InventoryApp.connection)
+        try:
+            sq.trim_TableList(InventoryApp.connection)
+
+        except OperationalError:
+            messagebox.showwarning('ERROR', 'Database is locked')
 
         title = tk.Label(self, text='List of All Tables: ', font=TITLE_FONT, fg='#0062A6')
         title.pack(anchor=tk.N, side=tk.TOP, fill=tk.X, pady=(10, 30))
@@ -218,13 +226,14 @@ class TableList(tk.Frame):
                 for value in row:
                     spot = tk.Label(self.table_frame, text=value, anchor=tk.W)
                     spot.grid(row=i, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
-                    #if i % 2 == 1:
+                    # if i % 2 == 1:
                     #    spot.configure(bg='#b8e1eb')
                     j += 1
                 i += 1
             for k in range(3):
                 padding_row = tk.Label(self.table_frame, text="", padx=75)
-                padding_row.grid(row=i, column=k, sticky=tk.W+tk.E)
+                padding_row.grid(row=i, column=k, sticky=tk.W + tk.E)
+
 
 class ViewTables(tk.Frame):
     def __init__(self, parent, controller):
@@ -432,6 +441,110 @@ class AddValues(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
 
+        title_frame = tk.Frame(self)
+        title_frame.pack(anchor=tk.N, side=tk.TOP, fill=tk.X, pady=(5, 30))
+
+        self.table_to_modify_frame = tk.Frame(self)
+        self.table_to_modify_frame.pack(anchor=tk.N, side=tk.TOP)
+
+        self.table_to_modify_label = None  # For initialization
+        self.table_to_modify_entry = None  # For initialization
+        self.table_to_modify_enter_button = None  # For initialization
+
+        self.table_to_modify()
+
+        self.entry_frame = tk.Frame(self)
+        self.entry_frame.pack(anchor=tk.N, side=tk.TOP, pady=(5, 0))
+
+        title = tk.Label(title_frame, text='Edit Table Contents', font=TITLE_FONT, fg='#0062A6')
+        title.pack()
+
+        home = tk.Button(self, text="Go to the main page", command=lambda: controller.show_frame("MainPage"))
+        home.pack(anchor=tk.S, side=tk.LEFT)
+
+    def table_enter_button(self):
+        table_name = self.table_to_modify_entry.get()
+
+        try:
+            headers_query = InventoryApp.connection.execute("PRAGMA table_info({0})".format(table_name)).fetchall()
+            headers = [x[1] for x in headers_query]
+
+            for widget in self.table_to_modify_frame.winfo_children():
+                widget.destroy()
+
+            j = 0
+            for header in headers:
+                column = tk.Label(self.entry_frame, text=header, anchor=tk.W)
+                column.grid(row=0, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
+                j += 1
+
+            j = 0
+            for _ in enumerate(headers):
+                entry = tk.Entry(self.entry_frame, width=15)
+                entry.grid(row=1, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
+                j += 1
+
+            enter_button = tk.Button(self.entry_frame, text='Enter', width=20,
+                                     command=lambda: multi_function(
+                                         sq.fillTable(
+                                             self.prepare_dict(), InventoryApp.connection, table_name),
+                                         self.destroy_entry_frame(),
+                                         self.table_to_modify()))
+            enter_button.grid(row=1, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
+
+        except OperationalError:
+            error_message = tk.Label(self.entry_frame, text='Incorrect Table Name')
+            error_message.grid(row=0, column=0)
+
+    def table_to_modify(self):
+
+        self.table_to_modify_label = tk.Label(self.table_to_modify_frame, text='Insert table to edit')
+        self.table_to_modify_label.pack(side=tk.LEFT, anchor=tk.W, padx=10)
+
+        self.table_to_modify_entry = tk.Entry(self.table_to_modify_frame, width=30)
+        self.table_to_modify_entry.pack(side=tk.LEFT, anchor=tk.W)
+
+        self.table_to_modify_enter_button = tk.Button(self.table_to_modify_frame, text='Enter', width=20,
+                                                      command=lambda: self.table_enter_button())
+        self.table_to_modify_enter_button.bind("<Return>", lambda event: self.table_enter_button())
+        self.table_to_modify_enter_button.pack(side=tk.LEFT, anchor=tk.W)
+
+    def destroy_entry_frame(self):
+        for widget in self.entry_frame.winfo_children():
+            widget.destroy()
+
+    def prepare_dict(self):
+        keys = []
+        values = []
+        for widget in self.entry_frame.winfo_children():
+            if widget.winfo_class() == 'Label':
+                keys.append(widget['text'])
+
+            if widget.winfo_class() == 'Entry':
+                values.append(widget.get())
+
+        logging.debug(keys)
+        logging.debug(values)
+
+        statement_dict = dict(zip(keys, values))
+
+        logging.debug(dict((key, value) for key, value in statement_dict.items() if value is not ''))
+
+        return dict((key, value) for key, value in statement_dict.items() if value is not '')
+
+    """
+    ACTION LIST:
+
+    1 insert table to edit
+    2 entry widget disappears
+    3 entry widgets for corresponding table appear
+    4 entry/cancel button appears
+    5 table entry widgets disappear
+    6 table is updated along with changelog
+    7 insert table to edit widget appears again
+
+
+    """
 
 if __name__ == "__main__":
     app = InventoryApp()
