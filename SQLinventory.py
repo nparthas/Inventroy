@@ -15,6 +15,9 @@
 # django-admin.exe startproject mysite
 # network access host through address 10.5.112.99:8000
 
+# https://techiedelight.quora.com/500-Data-structures-and-algorithms-interview-questions-and-their-solutions
+# http://www.pythonchallenge.com/pc/def/peak.html
+
 import sqlite3 as sq
 import time
 from sqlite3 import OperationalError
