@@ -12,6 +12,8 @@
 # http://www.pyimagesearch.com/2017/04/24/eye-blink-detection-opencv-python-dlib/
 # https://github.com/PyMySQL/PyMySQL
 # https://medium.com/@RobSm/deep-learning-prerequisites-logistic-regression-in-python-bcdb4c561358
+# http://www.holehouse.org/mlclass/
+# http://www.kdnuggets.com/2015/11/seven-steps-machine-learning-python.html
 
 # navigate to z-drive: cd\ then Z:
 # django innit Z:\Inventory>C:\Users\neilp\AppData\Local\Programs\Python\Python36-32\Scripts\dj
