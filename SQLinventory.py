@@ -10,6 +10,7 @@
 # pyqt
 # http://www.learncpp.com/cpp-tutorial/71-function-parameters-and-arguments/
 # http://www.pyimagesearch.com/2017/04/24/eye-blink-detection-opencv-python-dlib/
+# https://github.com/PyMySQL/PyMySQL
 
 # navigate to z-drive: cd\ then Z:
 # django innit Z:\Inventory>C:\Users\neilp\AppData\Local\Programs\Python\Python36-32\Scripts\dj
