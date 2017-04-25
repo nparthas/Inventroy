@@ -30,13 +30,6 @@ def multi_function(*functions):  # for multiple functions inside one button
     return func
 
 
-"""
-def on_closing():
-    if messagebox.askokcancel("Quit", "Do you want to quit?"):
-        tk.destroy()
-"""
-
-
 class InventoryApp(tk.Tk):
     connection = sq.createDB('Z:\Inventory\InventoryGUI\inventory.db')
 
@@ -87,10 +80,12 @@ class InventoryApp(tk.Tk):
         frame.tkraise()
 
     def on_closing(self):
-        # if messagebox.askokcancel("Quit", "Do you want to quit?"):
-        InventoryApp.connection.commit()
-        InventoryApp.connection.close()
-        InventoryApp.work_book.save('Inventory.xlsx')
+
+        if InventoryApp.connection:
+            # if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            InventoryApp.connection.commit()
+            InventoryApp.connection.close()
+            InventoryApp.work_book.save('Inventory.xlsx')
 
         self.destroy()
 
@@ -312,19 +307,20 @@ class ViewTables(tk.Frame):
         info_grid_canvas = tk.Canvas(self, borderwidth=0)
 
         self.info_grid_frame = tk.Frame(info_grid_canvas)
-        self.info_grid_frame.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH)
+        self.info_grid_frame.pack(anchor=tk.N, side=tk.TOP, fill=tk.BOTH, expand=True)
 
         info_grid_scrollbar = tk.Scrollbar(self, orient='vertical', command=info_grid_canvas.yview)
 
         info_grid_canvas.configure(yscrollcommand=info_grid_scrollbar.set)
 
         info_grid_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        info_grid_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        info_grid_canvas.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
         info_grid_canvas.create_window((4, 4), window=self.info_grid_frame, anchor=tk.NW, tags='info_grid_frame')
 
         self.info_grid_frame.bind("<Configure>", on_frame_configure)
 
-        home = tk.Button(home_frame, text="Go to the main page", command=lambda: controller.show_frame("MainPage"))
+        home = tk.Button(home_frame, text="Go to the main page",
+                         command=lambda: multi_function(controller.show_frame("MainPage"), self.refresh_values('')))
         home.pack(anchor=tk.S, side=tk.LEFT)
 
         title = tk.Label(title_frame, text='View Table Contents', font=TITLE_FONT, fg='#0062A6')
@@ -451,6 +447,12 @@ class AddValues(tk.Frame):
         self.table_to_modify_entry = None  # For initialization
         self.table_to_modify_enter_button = None  # For initialization
 
+        self.results_frame = tk.Frame(self)
+        self.results_frame.pack(anchor=tk.N, side=tk.TOP)
+
+        self.results_label = tk.Label(self.results_frame, text='')
+        self.results_label.pack()
+
         self.table_to_modify()
 
         self.entry_frame = tk.Frame(self)
@@ -465,9 +467,14 @@ class AddValues(tk.Frame):
     def table_enter_button(self):
         table_name = self.table_to_modify_entry.get()
 
-        try:
-            headers_query = InventoryApp.connection.execute("PRAGMA table_info({0})".format(table_name)).fetchall()
+        headers_query = InventoryApp.connection.execute("PRAGMA table_info({0})".format(table_name)).fetchall()
+
+        if headers_query:
+
+            self.results_label.configure(text='')
+
             headers = [x[1] for x in headers_query]
+            del headers[:1]
 
             for widget in self.table_to_modify_frame.winfo_children():
                 widget.destroy()
@@ -486,15 +493,19 @@ class AddValues(tk.Frame):
 
             enter_button = tk.Button(self.entry_frame, text='Enter', width=20,
                                      command=lambda: multi_function(
-                                         sq.fillTable(
-                                             self.prepare_dict(), InventoryApp.connection, table_name),
+                                         self.call_result(sq.fillTable(
+                                             self.prepare_dict(), InventoryApp.connection, table_name)),
                                          self.destroy_entry_frame(),
                                          self.table_to_modify()))
             enter_button.grid(row=1, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
 
-        except OperationalError:
-            error_message = tk.Label(self.entry_frame, text='Incorrect Table Name')
-            error_message.grid(row=0, column=0)
+            cancel_button = tk.Button(self.entry_frame, text='Cancel', width=20,
+                                      command=lambda: multi_function(self.destroy_entry_frame(),
+                                                                     self.table_to_modify()))
+            cancel_button.grid(row=2, column=j, sticky=tk.N + tk.E + tk.S + tk.W)
+
+        else:
+            self.results_label.configure(text='Incorrect Table Name')
 
     def table_to_modify(self):
 
@@ -506,6 +517,7 @@ class AddValues(tk.Frame):
 
         self.table_to_modify_enter_button = tk.Button(self.table_to_modify_frame, text='Enter', width=20,
                                                       command=lambda: self.table_enter_button())
+
         self.table_to_modify_enter_button.bind("<Return>", lambda event: self.table_enter_button())
         self.table_to_modify_enter_button.pack(side=tk.LEFT, anchor=tk.W)
 
@@ -532,19 +544,14 @@ class AddValues(tk.Frame):
 
         return dict((key, value) for key, value in statement_dict.items() if value is not '')
 
-    """
-    ACTION LIST:
+    def call_result(self, result):
+        self.results_label.configure(text=result)
 
-    1 insert table to edit
-    2 entry widget disappears
-    3 entry widgets for corresponding table appear
-    4 entry/cancel button appears
-    5 table entry widgets disappear
-    6 table is updated along with changelog
-    7 insert table to edit widget appears again
+    #  CREATE FUNCTIONS THAT ADD QUERY TO CHANGELOG TABLE
 
 
-    """
+#  CREATE FUNCTIONS THAT GIVE STATS EG. TURNOVER RATE
+
 
 if __name__ == "__main__":
     app = InventoryApp()
