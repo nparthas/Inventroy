@@ -9,6 +9,7 @@
 # https://www.cs.kent.ac.uk/people/staff/dat/miranda/whyfp90.pdf
 # pyqt
 # http://www.learncpp.com/cpp-tutorial/71-function-parameters-and-arguments/
+# http://www.pyimagesearch.com/2017/04/24/eye-blink-detection-opencv-python-dlib/
 
 # navigate to z-drive: cd\ then Z:
 # django innit Z:\Inventory>C:\Users\neilp\AppData\Local\Programs\Python\Python36-32\Scripts\dj
