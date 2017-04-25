@@ -15,9 +15,6 @@
 # django-admin.exe startproject mysite
 # network access host through address 10.5.112.99:8000
 
-# https://techiedelight.quora.com/500-Data-structures-and-algorithms-interview-questions-and-their-solutions
-# http://www.pythonchallenge.com/pc/def/peak.html
-
 import sqlite3 as sq
 import time
 from sqlite3 import OperationalError
@@ -167,7 +164,18 @@ def create_changelog_table(connection):
 
 
 def fillTable(dict, connection, tableName):
-    # keys = [key.title() for key in list(dict.keys())]
+
+    """
+    Abstract using dict:
+    create the following functions and call them in this function
+
+     return {
+     'Connectors' : fill_Connectors_table(),
+     'ConnectorsHistory' : fill_ConnectorsHistory_table(),
+     'SampleCases': fill_SampleCases_table(),
+     'SampleCasesHistory' : fill_SampleCasesHistory_table()
+     }[tableName]
+    """
 
     try:
         keys = list(dict.keys())
@@ -185,12 +193,12 @@ def fillTable(dict, connection, tableName):
         if tableName == 'Connectors':
             required_values = ('Name', 'CurrentAmount')
             entries = ('ConnectorID', 'Name', 'Series', 'CurrentAmount', 'Type', 'PairName', 'BoxAmount',
-                       'CartonAmount', 'DateOrdered', 'ProductInfo', 'OfficeAmount', 'StorageAmount')
+                       'CartonAmount', 'DateOrdered', 'ProductInfo', 'OfficeAmount', 'StorageAmount', 'SampleCase')
 
             if set(keys).issubset(set(entries)) and set(required_values).issubset(set(entries)):
 
                 if connection.execute('''SELECT EXISTS
-                        (SELECT 1 FROM Connectors WHERE Name = ?)''', (dict['Name'],)).fetchall()[0][0]:
+                        (SELECT 1 FROM Connectors WHERE Name = ?)''', (dict['Name'],)).fetchone()[0]:
 
                     insert_list = re.sub(r"[\[\]);]|UNION", "",
                                          str(list(zip(
@@ -214,8 +222,8 @@ def fillTable(dict, connection, tableName):
                             WHERE Name  = ?
                             AND HistoryID =(SELECT MAX(HistoryID)
                                             FROM ConnectorsHistory
-                                            WHERE Name = ?)''', (dict['Name'], dict['Name'])).fetchall()[0][0]
-                        except OperationalError:
+                                            WHERE Name = ?)''', (dict['Name'], dict['Name'])).fetchone()[0]
+                        except (OperationalError, TypeError):
                             history_amount = 0
 
                         difference = old_amount - history_amount
@@ -223,25 +231,34 @@ def fillTable(dict, connection, tableName):
                         entry_tuple = (dict['Name'], old_amount, today, difference,)
 
                         connection.execute(
-                            "INSERT INTO ConnectorsHistory (Name, Amount, Date, Difference) VALUES (?,?,?,?)", entry_tuple)
+                            '''INSERT INTO ConnectorsHistory (Name, Amount, Date, Difference) VALUES
+                            (?,?,?,?)''', entry_tuple)
+
                         print('Records successfully added to connectors history table')
                         # FIX
                         connection.execute("UPDATE Connectors SET {0} WHERE Name = ?".format(str(insert_list)),
                                            (dict['Name'],))
                         print('Records successfully updated in connectors table.')
 
+                        return 'Records successfully added to History and Connectors table'
+
                     except OperationalError:
                         print('Operational Error, no records modified')
-                        # a = tuple("({0}={1})".format(b, c) for b, c in zip(b, c))
+                        return 'Operational Error, no records modified'
 
                 else:
                     try:
                         connection.execute('INSERT INTO Connectors {0} VALUES {1}'.format(keySTR, valuesSTR))
                         print('Records successfully added to connectors table.')
+
+                        return 'Records successfully added to Connectors table'
                     except OperationalError:
                         print('Operational Error, no records modified')
+                        return 'Operational Error no records modified'
+
             else:
                 print("Invalid keys for update in Connectors table")
+                return 'Invalid keys for update in Connectors table'
 
         elif tableName == 'ConnectorsHistory':
             entries = ('Name', 'Amount', 'Date', 'Difference')
@@ -260,17 +277,20 @@ def fillTable(dict, connection, tableName):
                             AND HistoryID =(SELECT MAX(HistoryID)
                                             FROM ConnectorsHistory
                                             WHERE Name = ?)''', (dict['Name'], dict['Name'])).fetchall()[0][0]
-                        # VERIFY SUBQUERY SYNTAX
+                        # VERIFY THIS STATEMENT WORKS
                     except OperationalError:
                         old_amount = 0
                     connection.execute(
-                        'UPDATE ConnectorsHistory SET Difference = {0} WHERE Name = {1}'.format(old_amount, dict['Name']))
-                    # TEST
+                        'UPDATE ConnectorsHistory SET Difference = {0} WHERE Name = {1}'.format(old_amount,
+                                                                                                dict['Name']))
+                    # TEST CONNECTORS HISTORY
 
                 print('Records successfully added to ConnectorsHistory table.')
+                return 'Records successfully added to Connectors History table'
 
             else:
                 print('Invalid keys for update in ConnectorsHistory table')
+                return 'Invalid keys for update in Connectors History table'
 
         elif tableName == 'SampleCases':
             entries = ('Name', 'Amount', 'Date')
@@ -288,11 +308,14 @@ def fillTable(dict, connection, tableName):
                                              dict.keys(), dict.values()))).replace("',", "=").replace("('", ""),
                                          flags=re.IGNORECASE)
                     try:
-                        try:
+                        if connection.execute('''SELECT EXISTS
+                                              (SELECT * FROM SampleCases WHERE Name = ?)''',
+                                              (dict['Name'],)).fetchone()[0]:
                             old_amount = connection.execute(
-                                "SELECT Amount FROM Connectors WHERE Name = ?", dict['Name']).fetchall()[0][0]
+                                "SELECT Amount FROM SampleCases WHERE Name = ?", (dict['Name'],)).fetchall()[0][0]
 
-                        except OperationalError:
+                        else:
+
                             old_amount = 0
 
                         try:
@@ -302,7 +325,8 @@ def fillTable(dict, connection, tableName):
                                 WHERE Name = ?
                                 AND SampleCaseHistoryID =  (SELECT MAX(SampleCaseHistoryID
                                                             FROM ConnectorsHistory
-                                                            WHERE Name = ?''', (dict['Name'], dict["Name"])).fetchall()[0][0]
+                                                            WHERE Name = ?''',
+                                                                (dict['Name'], dict["Name"])).fetchall()[0][0]
                         except OperationalError:
                             history_amount = 0
 
@@ -311,25 +335,53 @@ def fillTable(dict, connection, tableName):
                         entry_tuple = (dict['Name'], old_amount, dict['Date'], difference)
 
                         connection.execute(
-                            "INSERT INTO SampleCasesHistory (Name, Amount, Date, Difference) VALUES (?,?,?,?)", entry_tuple)
+                            "INSERT INTO SampleCasesHistory (Name, Amount, Date, Difference) VALUES (?,?,?,?)",
+                            entry_tuple)
+
                         print("Records successfully added to sample cases history table")
 
                         connection.execute(
                             "UPDATE SampleCases SET {0} WHERE Name = ?".format(str(insert_list)), (dict["Name"],))
+
+                        connection.execute(
+                            '''UPDATE Connectors
+                               SET CurrentAmount = CurrentAmount - ?
+                               WHERE SampleCase = ?''', (dict['Amount'], dict['Name']))
+
                         print("Records successfully added to the sample cases table")
+
+                        return 'Records successfully added to SampleCases table, ' \
+                               'and Connector amounts successfully reduced'
+
+                        #  FIX DECREMENT STATEMENT ON CONNECTORS
+                        #  TEST SAMPLECASES
 
                     except OperationalError:
                         print('Operational Error, no records modified')
+                        return 'Operational Error, no records modified'
                 else:
                     try:
                         connection.execute("INSERT INTO SampleCases {0} VALUES {1}".format(keySTR, valuesSTR))
-                        connection.execute("UPDATE SampleCases SET Date = ? WHERE Name = ?", (dict['Date']), dict["Name"])
+                        connection.execute(""
+                                           "UPDATE SampleCases "
+                                           "SET Date = ? "
+                                           "WHERE Name = ?", (dict['Date'], dict["Name"]))
+
+                        connection.execute(
+                            '''UPDATE Connectors
+                               SET CurrentAmount = CurrentAmount - ?
+                               WHERE SampleCase = ?''', (dict['Amount'], dict['Name']))
+
+                        return 'Records successfully added to SampleCases table, ' \
+                               'and Connector amounts successfully reduced'
 
                     except OperationalError:
 
                         print("Operational Error, no records modified")
+                        return 'Operational Error, no records modified'
             else:
                 print('Invalid keys for update in Sample Cases table')
+                return 'Invalid keys for update in Samples Cases table'
 
         elif tableName == 'SampleCasesHistory':
             entries = ('Name', 'Amount', 'Date', 'Difference')
@@ -349,50 +401,18 @@ def fillTable(dict, connection, tableName):
 
                 connection.exectute('INSERT INTO SampleCasesHistory ' + keySTR + 'VALUES ' + valuesSTR)
                 print('Records successfully added to SampleCasesHistory table.')
+                return 'Records successfully added to Sample Cases History table'
 
             else:
                 print('Invalid keys for update in SampleCasesHistory table')
-
+                return 'Invalid keys for update in Sample Cases History table'
+            #  TEST SAMPLECASESHISTORY
         else:
             print('Not a valid table')
+            return 'Not a valid table'
 
-        connection.commit()
     except AttributeError:
         pass
-
-
-def has_values(connection, table):
-    return bool(connection.execute('SELECT COUNT(*) FROM ' + table).fetchall()[0][0])
-
-
-def retrieve_values(connection_object):
-    values_list = []
-
-    for value in connection_object:
-        values_list.append(value)
-    return values_list
-
-
-def format_values(values_list):
-    characters = ['[', ']', '(', ')', "'", ',']
-
-    values_str = str(values_list)
-    for chars in characters:
-        if chars in values_str:
-            if chars == '(':
-                values_str = values_str.replace(chars, '\n ')
-            else:
-                values_str = values_str.replace(chars, "")
-
-    return values_str
-
-
-def view_values(connection_object):
-    values = format_values(retrieve_values(connection_object))
-    if values:
-        return values
-    else:
-        return 'Table is empty'
 
 
 def exists_table(connection, table_name):
@@ -420,14 +440,6 @@ def query_table(connection, entry_list):  # entry_list is column criteria value
     return connection_object
 
 
-def query_headings(connection, table_name):
-    try:
-        table_headings = connection.execute("SELECT * FROM {0}".format(table_name))
-        return ' '.join(map(lambda x: x[0], table_headings.description)) + " \n"
-    except OperationalError:
-        return 'Invalid: '
-
-
 def trim_TableList(connection):
     connection.execute('''
             DELETE FROM TableList
@@ -445,3 +457,48 @@ conn_dict = {'ConnectorID': 1, 'Name': 'MUSBR', 'CurrentAmount': 10}
 his_dict = {'Name': 'MUSBR', 'Amount': 25}
 sample_dict = {'Name': 'HARSH', 'Amount': 5}
 
+
+"""
+LEGACY FUNCTIONS
+
+def view_values(connection_object):
+    values = format_values(retrieve_values(connection_object))
+    if values:
+        return values
+    else:
+        return 'Table is empty'
+
+def retrieve_values(connection_object):
+    values_list = []
+
+    for value in connection_object:
+        values_list.append(value)
+    return values_list
+
+def has_values(connection, table):
+    return bool(connection.execute('SELECT COUNT(*) FROM ' + table).fetchall()[0][0])
+
+def format_values(values_list):
+    characters = ['[', ']', '(', ')', "'", ',']
+
+    values_str = str(values_list)
+    for chars in characters:
+        if chars in values_str:
+            if chars == '(':
+                values_str = values_str.replace(chars, '\n ')
+            else:
+                values_str = values_str.replace(chars, "")
+
+    return values_str
+
+
+def query_headings(connection, table_name):
+    try:
+        table_headings = connection.execute("SELECT * FROM {0}".format(table_name))
+        return ' '.join(map(lambda x: x[0], table_headings.description)) + " \n"
+    except OperationalError:
+        return 'Invalid: '
+
+
+
+"""
