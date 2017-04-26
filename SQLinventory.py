@@ -14,6 +14,7 @@
 # https://medium.com/@RobSm/deep-learning-prerequisites-logistic-regression-in-python-bcdb4c561358
 # http://www.holehouse.org/mlclass/
 # http://www.kdnuggets.com/2015/11/seven-steps-machine-learning-python.html
+# http://cglab.ca/~abeinges/blah/too-many-lists/book/first-final.html
 
 # navigate to z-drive: cd\ then Z:
 # django innit Z:\Inventory>C:\Users\neilp\AppData\Local\Programs\Python\Python36-32\Scripts\dj
